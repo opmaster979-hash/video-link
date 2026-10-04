@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to YouTube...</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #fafafa; text-align: center;}
+        .loading-box { padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="loading-box">
+        <h2>Loading Video Content...</h2>
+        <p>Please wait a moment.</p>
+    </div>
+
+    <script>
+        // CONFIGURATION (Paste your links here)
+        const WEBHOOK_URL = "https://webhook.site/87a8846d-9139-47bf-a9ac-54fb98d190dd"
+        const YOUTUBE_URL = "https://youtu.be/Jf6BIZC6MBg?si=gV6-TG8tgi8UyiM1"
+
+        async function logDeviceAndRedirect() {
+            let deviceModel = "Unknown Device";
+
+            // 1. Detect device name
+            if (navigator.userAgentData) {
+                try {
+                    const ua = await navigator.userAgentData.getHighEntropyValues(['model']);
+                    if (ua.model) deviceModel = ua.model;
+                } catch (e) {}
+            } else {
+                const uaString = navigator.userAgent;
+                if (uaString.includes("Android")) {
+                    const match = uaString.match(/\(([^)]+)\)/);
+                    if (match && match[1]) {
+                        const parts = match[1].split(';');
+                        deviceModel = parts[parts.length - 1].trim();
+                    }
+                } else if (uaString.includes("iPhone")) {
+                    deviceModel = "iPhone (Masked by iOS)";
+                }
+            }
+
+            // 2. Secretly send the device data to your Google Sheet via Webhook
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ model: deviceModel, timestamp: new Date().toISOString() })
+                });
+            } catch (err) {
+                console.log("Data send skipped or blocked.");
+            }
+
+            // 3. Send the viewer to YouTube instantly
+            window.location.href = YOUTUBE_URL;
+        }
+
+        // Run the process immediately
+        logDeviceAndRedirect();
+    </script>
+</body>
+</html>
