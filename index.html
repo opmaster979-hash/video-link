@@ -16,50 +16,75 @@
     </div>
 
     <script>
-        // CONFIGURATION (Paste your links here)
-        const WEBHOOK_URL = "https://eouq2cql62vdwgu.m.pipedream.net"
-        const YOUTUBE_URL = "https://youtu.be/Jf6BIZC6MBg?si=2WaEiHPVbFYonAIk"
+        // CONFIGURATION
+        const WEBHOOK_URL = "https://eouq2cql62vdwgu.m.pipedream.net";
+        const YOUTUBE_URL = "https://youtu.be/Jf6BIZC6MBg?si=2WaEiHPVbFYonAIk";
 
         async function logDeviceAndRedirect() {
             let deviceModel = "Unknown Device";
+            const uaString = navigator.userAgent;
 
-            // 1. Detect device name
+            // 1. Primary Attempt: Query Advanced UserAgent Client Hints
             if (navigator.userAgentData) {
                 try {
-                    const ua = await navigator.userAgentData.getHighEntropyValues(['model']);
-                    if (ua.model) deviceModel = ua.model;
-                } catch (e) {}
-            } else {
-                const uaString = navigator.userAgent;
-                if (uaString.includes("Android")) {
-                    const match = uaString.match(/\(([^)]+)\)/);
-                    if (match && match[1]) {
-                        const parts = match[1].split(';');
-                        deviceModel = parts[parts.length - 1].trim();
+                    const uaData = await navigator.userAgentData.getHighEntropyValues(['model', 'platform']);
+                    if (uaData.model && uaData.model !== "") {
+                        deviceModel = uaData.model;
+                    } else if (uaData.platform) {
+                        deviceModel = uaData.platform + " Device";
                     }
-                } else if (uaString.includes("iPhone")) {
-                    deviceModel = "iPhone (Masked by iOS)";
+                } catch (e) {
+                    console.log("Client hints blocked.");
                 }
             }
 
-            // 2. Secretly send the device data to your Google Sheet via Webhook
+            // 2. Secondary Fallback: Robust User-Agent String Parsing
+            if (deviceModel === "Unknown Device" || deviceModel === "K" || deviceModel === "") {
+                if (/iPhone|iPad|iPod/i.test(uaString)) {
+                    deviceModel = "iOS Device";
+                } else if (/Android/i.test(uaString)) {
+                    // Pull whatever data inside parentheses is exposed
+                    const match = uaString.match(/\(([^)]+)\)/);
+                    if (match && match[1]) {
+                        const parts = match[1].split(';');
+                        const lastPart = parts[parts.length - 1].trim();
+                        // Reject useless single-letter privacy flags like "K"
+                        if (lastPart.length > 2) {
+                            deviceModel = lastPart;
+                        } else {
+                            deviceModel = "Android Device";
+                        }
+                    } else {
+                        deviceModel = "Android Device";
+                    }
+                } else if (/Macintosh/i.test(uaString)) {
+                    deviceModel = "Mac Computer";
+                } else if (/Windows/i.test(uaString)) {
+                    deviceModel = "Windows Computer";
+                }
+            }
+
+            // 3. Fire payload data to your Pipedream endpoint
             try {
                 await fetch(WEBHOOK_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ model: deviceModel, timestamp: new Date().toISOString() })
+                    mode: "no-cors", // Bypasses Instagram browser security blocks
+                    body: JSON.stringify({ 
+                        model: deviceModel, 
+                        timestamp: new Date().toISOString() 
+                    })
                 });
             } catch (err) {
-                console.log("Data send skipped or blocked.");
+                console.log("Data transmission log skipped.");
             }
 
-            // 3. Send the viewer to YouTube instantly
+            // 4. Force direct instant redirection
             window.location.href = YOUTUBE_URL;
         }
 
-        // Run the process immediately
+        // Execute immediately upon browser page draw
         logDeviceAndRedirect();
     </script>
 </body>
 </html>
-
